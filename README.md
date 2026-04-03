@@ -4,6 +4,7 @@
 
 自适应单页打印工具 —— 粘贴 Markdown，自动缩放字体，让所有内容刚好填满一张 A4 纸。
 
+----
 ## 核心特性
 
 - **自动字号适配**：二分查找最大可用字体，内容多则缩小、内容少则放大，始终填满一页
@@ -78,8 +79,8 @@ podman run --rm -p 8080:80 docker.io/masonsxu/printfit:latest
 如果需要固定版本，也可以直接拉取 tag：
 
 ```bash
-docker pull docker.io/masonsxu/printfit:0.2.0
-podman pull docker.io/masonsxu/printfit:0.2.0
+docker pull docker.io/masonsxu/printfit:1.0.0
+podman pull docker.io/masonsxu/printfit:1.0.0
 ```
 
 打开 `http://localhost:8080` 即可访问。
@@ -92,8 +93,6 @@ podman pull docker.io/masonsxu/printfit:0.2.0
 ### 自动发布到 Docker Hub
 
 本 fork 内置了 GitHub Actions workflow：
-- `pull_request -> prod`：只校验镜像可构建，不推送
-- `push -> prod`：推送 `prod` 和 `sha-*` 标签
 - `push tag v*.*.*`：推送 `vX.Y.Z`、`X.Y.Z`、`X.Y`、`latest`
 
 需要在 GitHub 仓库设置里配置以下 Secrets：
@@ -179,6 +178,12 @@ PrintFit 使用 Pretext 做 Canvas 级文本测量。以下是与其他方案的
 | OffscreenCanvas + Worker | Worker 线程中 Canvas 测量 | 不阻塞主线程 | 中等 | 字体加载受限，兼容性不佳 |
 
 Pretext 的核心优势：**用 Canvas 测量字符宽度后纯算术计算换行**，避免了 DOM reflow 的性能瓶颈。8 次二分迭代 × 20 个文本块 ≈ 160 次 `prepare + layout` 调用，总耗时仅约 7ms。
+
+## 社区支持
+
+学 AI ，上 L 站
+
+[LinuxDO](https://linux.do/)
 
 ## License
 
