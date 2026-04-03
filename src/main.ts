@@ -225,8 +225,7 @@ window.addEventListener('afterprint', () => {
 })
 
 function addPage(initialContent = ''): void {
-  const index = pageStates.length
-  const pageNum = index + 1
+  const pageNum = pageStates.length + 1
 
   // Create editor
   const editorCard = document.createElement('div')
@@ -242,7 +241,6 @@ function addPage(initialContent = ''): void {
   const deleteBtn = document.createElement('button')
   deleteBtn.className = 'btn-delete-page'
   deleteBtn.textContent = '删除'
-  deleteBtn.addEventListener('click', () => removePage(index))
 
   editorHeader.append(pageNumLabel, deleteBtn)
 
@@ -266,18 +264,23 @@ function addPage(initialContent = ''): void {
   page.appendChild(content)
   a4Wrapper.appendChild(page)
 
-  pageStates.push({ editor: textarea, page, content })
+  const pageState = { editor: textarea, page, content }
+  deleteBtn.addEventListener('click', () => removePage(pageState))
+
+  pageStates.push(pageState)
 
   updatePageLabels()
   scheduleUpdate()
 }
 
-function removePage(index: number): void {
+function removePage(pageState: PageState): void {
   if (pageStates.length <= 1) return
 
-  const state = pageStates[index]
-  state.editor.closest('.editor-card')!.remove()
-  state.page.remove()
+  const index = pageStates.indexOf(pageState)
+  if (index === -1) return
+
+  pageState.editor.closest('.editor-card')!.remove()
+  pageState.page.remove()
   pageStates.splice(index, 1)
 
   updatePageLabels()
@@ -368,7 +371,7 @@ async function update(): Promise<void> {
     const blocks = extractBlocks(markdown)
     const { fontSize, overflow } = findOptimalFontSize(blocks, settings)
     if (overflow) globalOverflow = true
-    if (i === 0) displayFontSize = fontSize
+    if (displayFontSize === 0) displayFontSize = fontSize
 
     const html = await parse(markdown)
     let currentFontSize = fontSize
@@ -395,7 +398,7 @@ async function update(): Promise<void> {
       }
       currentFontSize = Math.floor(lo * 4) / 4
       applyStyles(state.page, settings, currentFontSize)
-      if (i === 0) displayFontSize = currentFontSize
+      if (displayFontSize === fontSize) displayFontSize = currentFontSize
 
       if (currentFontSize <= 6.25 && state.content.scrollHeight > availableHeight) {
         globalOverflow = true
