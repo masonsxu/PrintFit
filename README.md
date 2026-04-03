@@ -59,20 +59,27 @@ bun run dev
 
 ## Docker / Podman
 
-### 构建镜像
+> 以下镜像与自动发布流程由本 fork 维护，不代表上游仓库的官方发布。
+
+### 直接拉取并运行
 
 ```bash
-docker build -t printfit .
-# 或
-podman build -t printfit .
+docker pull docker.io/masonsxu/printfit:latest
+docker run --rm -p 8080:80 docker.io/masonsxu/printfit:latest
 ```
 
-### 运行容器
+或使用 Podman：
 
 ```bash
-docker run --rm -p 8080:80 printfit
-# 或
-podman run --rm -p 8080:80 printfit
+podman pull docker.io/masonsxu/printfit:latest
+podman run --rm -p 8080:80 docker.io/masonsxu/printfit:latest
+```
+
+如果需要固定版本，也可以直接拉取 tag：
+
+```bash
+docker pull docker.io/masonsxu/printfit:0.2.0
+podman pull docker.io/masonsxu/printfit:0.2.0
 ```
 
 打开 `http://localhost:8080` 即可访问。
@@ -84,33 +91,19 @@ podman run --rm -p 8080:80 printfit
 
 ### 自动发布到 Docker Hub
 
-仓库内置了 GitHub Actions workflow：
-- `pull_request -> main`：只校验镜像可构建，不推送
-- `push -> main`：推送 `main` 和 `sha-*` 标签
+本 fork 内置了 GitHub Actions workflow：
+- `pull_request -> prod`：只校验镜像可构建，不推送
+- `push -> prod`：推送 `prod` 和 `sha-*` 标签
 - `push tag v*.*.*`：推送 `vX.Y.Z`、`X.Y.Z`、`X.Y`、`latest`
 
-首次使用前，需要在 GitHub 仓库设置里配置以下 Secrets：
+需要在 GitHub 仓库设置里配置以下 Secrets：
 - `DOCKERHUB_USERNAME`
 - `DOCKERHUB_TOKEN`
 
-workflow 默认会把镜像推送到：
+镜像地址：
 
 ```text
-docker.io/<DOCKERHUB_USERNAME>/printfit
-```
-
-例如：
-
-```bash
-docker pull docker.io/<DOCKERHUB_USERNAME>/printfit:latest
-docker run --rm -p 8080:80 docker.io/<DOCKERHUB_USERNAME>/printfit:latest
-```
-
-如果你更习惯 Podman，也可以直接运行：
-
-```bash
-podman pull docker.io/<DOCKERHUB_USERNAME>/printfit:latest
-podman run --rm -p 8080:80 docker.io/<DOCKERHUB_USERNAME>/printfit:latest
+docker.io/masonsxu/printfit
 ```
 
 发布正式版本时，创建并推送一个语义化 tag：

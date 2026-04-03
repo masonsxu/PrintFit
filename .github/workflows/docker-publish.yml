@@ -3,10 +3,10 @@ name: Docker Publish
 on:
   pull_request:
     branches:
-      - main
+      - prod
   push:
     branches:
-      - main
+      - prod
     tags:
       - 'v*.*.*'
 
@@ -41,8 +41,8 @@ jobs:
         with:
           images: docker.io/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=main,enable=${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
-            type=sha,prefix=sha-,enable=${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+            type=raw,value=prod,enable=${{ github.event_name == 'push' && github.ref == 'refs/heads/prod' }}
+            type=sha,prefix=sha-,enable=${{ github.event_name == 'push' && github.ref == 'refs/heads/prod' }}
             type=ref,event=tag
             type=match,pattern=v(.*),group=1
             type=match,pattern=v(\d+\.\d+)(?:\.\d+)?,group=1
