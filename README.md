@@ -33,6 +33,69 @@ bun run dev
 
 浏览器打开后，在左侧粘贴 Markdown 内容，右侧即时预览 A4 效果。按 `⌘P` 打印或导出 PDF。
 
+## Docker / Podman
+
+### 构建镜像
+
+```bash
+docker build -t printfit .
+# 或
+podman build -t printfit .
+```
+
+### 运行容器
+
+```bash
+docker run --rm -p 8080:80 printfit
+# 或
+podman run --rm -p 8080:80 printfit
+```
+
+打开 `http://localhost:8080` 即可访问。
+
+说明：
+- 生产镜像使用 **Bun 构建 + nginx 托管静态文件**
+- 容器内提供的是构建后的 `dist/`，不是 `vite preview`
+- 页面字体依赖 Google Fonts；在无法访问 Google Fonts 的网络环境下会回退到本地字体，可能影响排版测量和打印效果
+
+### 自动发布到 Docker Hub
+
+仓库内置了 GitHub Actions workflow：
+- `pull_request -> main`：只校验镜像可构建，不推送
+- `push -> main`：推送 `main` 和 `sha-*` 标签
+- `push tag v*.*.*`：推送 `vX.Y.Z`、`X.Y.Z`、`X.Y`、`latest`
+
+首次使用前，需要在 GitHub 仓库设置里配置以下 Secrets：
+- `DOCKERHUB_USERNAME`
+- `DOCKERHUB_TOKEN`
+
+workflow 默认会把镜像推送到：
+
+```text
+docker.io/<DOCKERHUB_USERNAME>/printfit
+```
+
+例如：
+
+```bash
+docker pull docker.io/<DOCKERHUB_USERNAME>/printfit:latest
+docker run --rm -p 8080:80 docker.io/<DOCKERHUB_USERNAME>/printfit:latest
+```
+
+如果你更习惯 Podman，也可以直接运行：
+
+```bash
+podman pull docker.io/<DOCKERHUB_USERNAME>/printfit:latest
+podman run --rm -p 8080:80 docker.io/<DOCKERHUB_USERNAME>/printfit:latest
+```
+
+发布正式版本时，创建并推送一个语义化 tag：
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
 ### 预览操作
 
 | 操作 | 方式 |
