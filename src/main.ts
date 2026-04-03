@@ -8,16 +8,22 @@ import './style.css'
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 let lastLoadedFont = ''
-let a4Content: HTMLElement
-let a4Page: HTMLElement
 let a4Wrapper: HTMLElement
-let a4Placeholder: HTMLElement
+let editorsList: HTMLElement
 let statusFontSize: HTMLElement
 let statusOverflow: HTMLElement
 let statusZoom: HTMLElement
-let textarea: HTMLTextAreaElement
+let statusPages: HTMLElement
 let fitScale = 1
 let userZoom = 1
+
+interface PageState {
+  editor: HTMLTextAreaElement
+  page: HTMLElement
+  content: HTMLElement
+}
+
+let pageStates: PageState[] = []
 
 function buildDOM(): void {
   const app = document.getElementById('app')!
@@ -29,7 +35,7 @@ function buildDOM(): void {
 
   const title = document.createElement('div')
   title.className = 'topbar-title'
-  title.textContent = '一页印 PrintFit'
+  title.textContent = '多页印 PrintFit'
 
   const statusArea = document.createElement('div')
   statusArea.className = 'topbar-status'
@@ -42,37 +48,58 @@ function buildDOM(): void {
   statusOverflow.className = 'status-overflow'
   statusOverflow.textContent = '内容溢出'
 
+  statusPages = document.createElement('span')
+  statusPages.className = 'status-pages'
+  statusPages.textContent = '1 页'
+
   statusZoom = document.createElement('span')
   statusZoom.className = 'status-zoom'
   statusZoom.textContent = '100%'
   statusZoom.title = '⌘+滚轮缩放，双击重置'
 
-  const printBtn = document.createElement('button')
-  printBtn.className = 'btn-print'
-  printBtn.textContent = '打印 ⌘P'
-  printBtn.addEventListener('click', () => window.print())
+  const btnPrint = document.createElement('button')
+  btnPrint.className = 'btn-print'
+  btnPrint.textContent = '打印 ⌘P'
+  btnPrint.addEventListener('click', preparePrint)
 
-  statusArea.append(statusFontSize, statusZoom, statusOverflow, printBtn)
+  statusArea.append(statusFontSize, statusZoom, statusPages, statusOverflow, btnPrint)
   topbar.append(title, statusArea)
 
   // Left panel
   const leftPanel = document.createElement('div')
   leftPanel.className = 'left-panel'
 
-  const textareaWrapper = document.createElement('div')
-  textareaWrapper.className = 'textarea-wrapper'
+  const editorsHeader = document.createElement('div')
+  editorsHeader.className = 'editors-header'
+  
+  const editorsTitle = document.createElement('span')
+  editorsTitle.textContent = '页面编辑区'
 
-  const textareaHeader = document.createElement('div')
-  textareaHeader.className = 'textarea-header'
+  const addPageBtn = document.createElement('button')
+  addPageBtn.className = 'btn-add-page'
+  addPageBtn.textContent = '+ 添加页面'
+  addPageBtn.addEventListener('click', () => addPage())
 
-  const headerLabel = document.createElement('span')
-  headerLabel.textContent = '粘贴 / 编辑 Markdown'
+  editorsHeader.append(editorsTitle, addPageBtn)
+
+  const editorsWrapper = document.createElement('div')
+  editorsWrapper.className = 'editors-wrapper'
+
+  editorsList = document.createElement('div')
+  editorsList.className = 'editors-list'
+
+  const sampleBar = document.createElement('div')
+  sampleBar.className = 'sample-bar'
+  
+  const sampleLabel = document.createElement('span')
+  sampleLabel.textContent = '加载示例:'
+  sampleLabel.className = 'sample-label'
 
   const sampleSelect = document.createElement('select')
   sampleSelect.className = 'sample-select'
   const emptyOpt = document.createElement('option')
   emptyOpt.value = ''
-  emptyOpt.textContent = '加载示例…'
+  emptyOpt.textContent = '选择...'
   sampleSelect.appendChild(emptyOpt)
   for (const s of SAMPLES) {
     const opt = document.createElement('option')
@@ -80,23 +107,15 @@ function buildDOM(): void {
     opt.textContent = s.label
     sampleSelect.appendChild(opt)
   }
-  sampleSelect.value = SAMPLES[0].value
   sampleSelect.addEventListener('change', () => {
     const sample = SAMPLES.find(s => s.value === sampleSelect.value)
     if (sample) {
-      textarea.value = sample.content
-      scheduleUpdate()
+      loadSample(sample.content)
     }
   })
 
-  textareaHeader.append(headerLabel, sampleSelect)
-
-  textarea = document.createElement('textarea')
-  textarea.className = 'input-textarea'
-  textarea.placeholder = '在此粘贴 Markdown 内容...\n\n支持粘贴后编辑修改\n\n# 标题\n\n正文内容...\n\n- 列表项'
-  textarea.spellcheck = false
-
-  textareaWrapper.append(textareaHeader, textarea)
+  sampleBar.append(sampleLabel, sampleSelect)
+  editorsWrapper.append(sampleBar, editorsList)
 
   const controlsSection = document.createElement('div')
   controlsSection.className = 'controls-section'
@@ -112,33 +131,17 @@ function buildDOM(): void {
   })
 
   controlsSection.append(controlsHeader, controlsBody)
-  leftPanel.append(textareaWrapper, controlsSection)
+  leftPanel.append(editorsHeader, editorsWrapper, controlsSection)
 
   // Right panel
   const rightPanel = document.createElement('div')
   rightPanel.className = 'right-panel'
 
-  a4Page = document.createElement('div')
-  a4Page.className = 'a4-page'
-
-  a4Placeholder = document.createElement('div')
-  a4Placeholder.className = 'a4-placeholder'
-  a4Placeholder.textContent = '在左侧粘贴内容以预览'
-
-  a4Content = document.createElement('div')
-  a4Content.className = 'a4-content'
-
-  a4Page.append(a4Placeholder, a4Content)
-
   a4Wrapper = document.createElement('div')
   a4Wrapper.className = 'a4-wrapper'
-  a4Wrapper.appendChild(a4Page)
   rightPanel.appendChild(a4Wrapper)
 
   app.append(topbar, leftPanel, rightPanel)
-
-  // Events: textarea supports both paste and live editing
-  textarea.addEventListener('input', scheduleUpdate)
 
   // Auto-scale A4 page to fit the right panel
   const resizeObserver = new ResizeObserver(() => updateA4Scale())
@@ -190,10 +193,123 @@ function buildDOM(): void {
     applyScale()
     updateZoomStatus()
   })
+
+  // Cmd+P to print
+  document.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'p') {
+      e.preventDefault()
+      preparePrint()
+    }
+  })
+
+  // Initialize with one page
+  addPage()
+}
+
+function preparePrint(): void {
+  document.body.classList.add('is-printing')
+
+  // Remove inline styles for printing
+  for (const state of pageStates) {
+    state.page.style.transform = ''
+    state.page.style.transformOrigin = ''
+  }
+
+  window.print()
+}
+
+// Restore scale after printing
+window.addEventListener('afterprint', () => {
+  document.body.classList.remove('is-printing')
+  applyScale()
+})
+
+function addPage(initialContent = ''): void {
+  const index = pageStates.length
+  const pageNum = index + 1
+
+  // Create editor
+  const editorCard = document.createElement('div')
+  editorCard.className = 'editor-card'
+
+  const editorHeader = document.createElement('div')
+  editorHeader.className = 'editor-card-header'
+
+  const pageNumLabel = document.createElement('span')
+  pageNumLabel.className = 'page-num-label'
+  pageNumLabel.textContent = `第 ${pageNum} 页`
+
+  const deleteBtn = document.createElement('button')
+  deleteBtn.className = 'btn-delete-page'
+  deleteBtn.textContent = '删除'
+  deleteBtn.addEventListener('click', () => removePage(index))
+
+  editorHeader.append(pageNumLabel, deleteBtn)
+
+  const textarea = document.createElement('textarea')
+  textarea.className = 'editor-textarea'
+  textarea.placeholder = `在此输入第 ${pageNum} 页的 Markdown 内容...`
+  textarea.spellcheck = false
+  textarea.value = initialContent
+  textarea.addEventListener('input', scheduleUpdate)
+
+  editorCard.append(editorHeader, textarea)
+  editorsList.appendChild(editorCard)
+
+  // Create A4 page
+  const page = document.createElement('div')
+  page.className = 'a4-page'
+
+  const content = document.createElement('div')
+  content.className = 'a4-content'
+
+  page.appendChild(content)
+  a4Wrapper.appendChild(page)
+
+  pageStates.push({ editor: textarea, page, content })
+
+  updatePageLabels()
+  scheduleUpdate()
+}
+
+function removePage(index: number): void {
+  if (pageStates.length <= 1) return
+
+  const state = pageStates[index]
+  state.editor.closest('.editor-card')!.remove()
+  state.page.remove()
+  pageStates.splice(index, 1)
+
+  updatePageLabels()
+  scheduleUpdate()
+}
+
+function updatePageLabels(): void {
+  pageStates.forEach((state, i) => {
+    const label = state.editor.closest('.editor-card')!.querySelector('.page-num-label')!
+    label.textContent = `第 ${i + 1} 页`
+    state.editor.placeholder = `在此输入第 ${i + 1} 页的 Markdown 内容...`
+  })
+  statusPages.textContent = `${pageStates.length} 页`
+}
+
+function loadSample(content: string): void {
+  // Clear all pages except the first one
+  while (pageStates.length > 1) {
+    const state = pageStates.pop()!
+    state.editor.closest('.editor-card')!.remove()
+    state.page.remove()
+  }
+
+  // Load content into first page
+  if (pageStates.length > 0) {
+    pageStates[0].editor.value = content
+  }
+
+  scheduleUpdate()
 }
 
 const PAGE_W = 794
-const PAGE_H = 1123
 
 function updateA4Scale(): void {
   const rightPanel = a4Wrapper.parentElement
@@ -201,18 +317,17 @@ function updateA4Scale(): void {
 
   const padding = 32
   const availW = rightPanel.clientWidth - padding * 2
-  const availH = rightPanel.clientHeight - padding * 2
 
-  fitScale = Math.min(availW / PAGE_W, availH / PAGE_H)
+  fitScale = Math.min(availW / PAGE_W, 1)
   applyScale()
 }
 
 function applyScale(): void {
   const scale = fitScale * userZoom
-  a4Page.style.transform = `scale(${scale})`
-  a4Page.style.transformOrigin = 'top left'
-  a4Wrapper.style.width = `${PAGE_W * scale}px`
-  a4Wrapper.style.height = `${PAGE_H * scale}px`
+  for (const state of pageStates) {
+    state.page.style.transform = `scale(${scale})`
+    state.page.style.transformOrigin = 'top center'
+  }
 }
 
 function updateZoomStatus(): void {
@@ -227,20 +342,9 @@ function scheduleUpdate(): void {
 }
 
 async function update(): Promise<void> {
-  const markdown = textarea.value
   const settings = getSettings()
 
-  if (!markdown.trim()) {
-    a4Content.textContent = ''
-    a4Placeholder.style.display = ''
-    statusFontSize.textContent = '—'
-    statusOverflow.classList.remove('visible')
-    return
-  }
-
-  a4Placeholder.style.display = 'none'
-
-  // Only load font when it changes
+  // Load font if needed
   if (lastLoadedFont !== settings.fontFamily) {
     await Promise.all([
       document.fonts.load(`16px "${settings.fontFamily}"`),
@@ -249,68 +353,77 @@ async function update(): Promise<void> {
     lastLoadedFont = settings.fontFamily
   }
 
-  // Extract blocks and find optimal font size via Pretext
-  const blocks = extractBlocks(markdown)
-  const { fontSize, overflow } = findOptimalFontSize(blocks, settings)
+  let globalOverflow = false
+  let displayFontSize = 0
 
-  // Update status bar
-  statusFontSize.textContent = `${fontSize.toFixed(1)}px`
-  statusOverflow.classList.toggle('visible', overflow)
+  for (let i = 0; i < pageStates.length; i++) {
+    const state = pageStates[i]
+    const markdown = state.editor.value
 
-  // Render Markdown to HTML and apply to A4 page
-  const html = await parse(markdown)
-  let currentFontSize = fontSize
-  applyStyles(settings, currentFontSize)
+    if (!markdown.trim()) {
+      state.content.textContent = ''
+      continue
+    }
 
-  // Use DOMParser to safely set content
-  const doc = new DOMParser().parseFromString(html, 'text/html')
-  a4Content.replaceChildren(...Array.from(doc.body.childNodes).map(n => n.cloneNode(true)))
+    const blocks = extractBlocks(markdown)
+    const { fontSize, overflow } = findOptimalFontSize(blocks, settings)
+    if (overflow) globalOverflow = true
+    if (i === 0) displayFontSize = fontSize
 
-  // DOM fallback: if content overflows, binary search for fitting font size (~5 reflows instead of ~20)
-  const pageStyle = getComputedStyle(a4Page)
-  const availableHeight = a4Page.clientHeight - parseFloat(pageStyle.paddingTop) - parseFloat(pageStyle.paddingBottom)
+    const html = await parse(markdown)
+    let currentFontSize = fontSize
+    applyStyles(state.page, settings, currentFontSize)
 
-  if (a4Content.scrollHeight > availableHeight && currentFontSize > 6) {
-    let lo = 6
-    let hi = currentFontSize
-    while (hi - lo > 0.25) {
-      const mid = (lo + hi) / 2
-      applyStyles(settings, mid)
-      if (a4Content.scrollHeight <= availableHeight) {
-        lo = mid
-      } else {
-        hi = mid
+    const doc = new DOMParser().parseFromString(html, 'text/html')
+    state.content.replaceChildren(...Array.from(doc.body.childNodes).map(n => n.cloneNode(true)))
+
+    // DOM fallback
+    const pageStyle = getComputedStyle(state.page)
+    const availableHeight = state.page.clientHeight - parseFloat(pageStyle.paddingTop) - parseFloat(pageStyle.paddingBottom)
+
+    if (state.content.scrollHeight > availableHeight && currentFontSize > 6) {
+      let lo = 6
+      let hi = currentFontSize
+      while (hi - lo > 0.25) {
+        const mid = (lo + hi) / 2
+        applyStyles(state.page, settings, mid)
+        if (state.content.scrollHeight <= availableHeight) {
+          lo = mid
+        } else {
+          hi = mid
+        }
+      }
+      currentFontSize = Math.floor(lo * 4) / 4
+      applyStyles(state.page, settings, currentFontSize)
+      if (i === 0) displayFontSize = currentFontSize
+
+      if (currentFontSize <= 6.25 && state.content.scrollHeight > availableHeight) {
+        globalOverflow = true
       }
     }
-    currentFontSize = Math.floor(lo * 4) / 4
-    applyStyles(settings, currentFontSize)
-    statusFontSize.textContent = `${currentFontSize.toFixed(1)}px`
-    statusOverflow.classList.toggle('visible', currentFontSize <= 6.25 && a4Content.scrollHeight > availableHeight)
   }
+
+  statusFontSize.textContent = displayFontSize > 0 ? `${displayFontSize.toFixed(1)}px` : '—'
+  statusOverflow.classList.toggle('visible', globalOverflow)
+  applyScale()
 }
 
-const THEME_CLASSES = [
-  'theme-classic', 'theme-warm', 'theme-academic', 'theme-editorial',
-  'theme-smartisan', 'theme-noir', 'theme-mint', 'theme-ink', 'theme-tech', 'theme-kraft',
-]
+function applyStyles(page: HTMLElement, settings: StyleSettings, fontSize: number): void {
+  const themeClasses = [
+    'theme-classic', 'theme-warm', 'theme-academic', 'theme-editorial',
+    'theme-smartisan', 'theme-noir', 'theme-mint', 'theme-ink', 'theme-tech', 'theme-kraft',
+  ]
+  page.classList.remove(...themeClasses)
+  page.classList.add(`theme-${settings.theme}`)
 
-function applyStyles(settings: StyleSettings, fontSize: number): void {
-  // Theme class
-  a4Page.classList.remove(...THEME_CLASSES)
-  a4Page.classList.add(`theme-${settings.theme}`)
-
-  a4Page.style.padding = `${settings.marginMm}mm`
-  a4Page.style.fontFamily = `"${settings.fontFamily}", -apple-system, sans-serif`
-  a4Page.style.fontSize = `${fontSize}px`
-  a4Page.style.lineHeight = String(settings.lineHeightRatio)
-  a4Page.style.setProperty('--ps', `${settings.paragraphSpacing}em`)
-  a4Page.style.setProperty('--fi', `${settings.firstLineIndent}em`)
+  page.style.padding = `${settings.marginMm}mm`
+  page.style.fontFamily = `"${settings.fontFamily}", -apple-system, sans-serif`
+  page.style.fontSize = `${fontSize}px`
+  page.style.lineHeight = String(settings.lineHeightRatio)
+  page.style.setProperty('--ps', `${settings.paragraphSpacing}em`)
+  page.style.setProperty('--fi', `${settings.firstLineIndent}em`)
 }
 
-// Init
 document.addEventListener('DOMContentLoaded', () => {
   buildDOM()
-  // Pre-fill with default sample (resume)
-  textarea.value = SAMPLES[0].content
-  scheduleUpdate()
 })

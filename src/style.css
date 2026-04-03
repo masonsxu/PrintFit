@@ -98,6 +98,14 @@ body {
   font-weight: 600;
 }
 
+.status-pages {
+  background: var(--accent-dim);
+  color: var(--accent);
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-weight: 600;
+}
+
 .status-overflow {
   color: var(--danger);
   font-weight: 600;
@@ -139,24 +147,62 @@ body {
   min-width: 0;
 }
 
-.textarea-wrapper {
-  flex: 1 1 0;
+/* ─── Editors Header ─────────────────────── */
+.editors-header {
   display: flex;
-  flex-direction: column;
-  min-height: 200px;
-  overflow: hidden;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
 }
 
-.textarea-header {
-  padding: 12px 16px 8px;
+.editors-header > span {
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--text-muted);
+}
+
+.btn-add-page {
+  background: var(--accent);
+  color: #ffffff;
+  border: none;
+  padding: 5px 12px;
+  border-radius: var(--radius);
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.btn-add-page:hover {
+  opacity: 0.85;
+}
+
+/* ─── Editors Wrapper ────────────────────── */
+.editors-wrapper {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.sample-bar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.sample-label {
+  font-size: 11px;
+  color: var(--text-muted);
 }
 
 .sample-select {
@@ -167,9 +213,6 @@ body {
   color: var(--text-primary);
   font-family: var(--font-ui);
   font-size: 11px;
-  font-weight: 400;
-  text-transform: none;
-  letter-spacing: normal;
   cursor: pointer;
   outline: none;
 }
@@ -178,23 +221,69 @@ body {
   border-color: var(--border-focus);
 }
 
-.input-textarea {
+.editors-list {
   flex: 1 1 0;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ─── Editor Card ────────────────────────── */
+.editor-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.editor-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--bg-input);
+  border-bottom: 1px solid var(--border);
+}
+
+.page-num-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.btn-delete-page {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 3px;
+  transition: all 0.15s;
+}
+
+.btn-delete-page:hover {
+  background: var(--danger);
+  color: #ffffff;
+}
+
+.editor-textarea {
   width: 100%;
-  padding: 0 16px 16px;
+  min-height: 120px;
+  padding: 12px;
   background: transparent;
   border: none;
-  resize: none;
+  resize: vertical;
   font-family: var(--font-mono);
   font-size: 13px;
   line-height: 1.6;
   color: var(--text-primary);
   outline: none;
-  overflow-y: auto;
-  min-height: 0;
 }
 
-.input-textarea::placeholder {
+.editor-textarea::placeholder {
   color: var(--text-muted);
 }
 
@@ -290,7 +379,6 @@ body {
   min-height: 0;
   min-width: 0;
   cursor: grab;
-  /* subtle cross pattern */
   background-image:
     radial-gradient(circle, #d5d0c6 1px, transparent 1px);
   background-size: 20px 20px;
@@ -302,10 +390,12 @@ body {
   user-select: none;
 }
 
-/* ─── A4 Wrapper (handles scaling) ────────── */
+/* ─── A4 Wrapper ─────────────────────────── */
 .a4-wrapper {
-  position: relative;
-  margin: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
 }
 
 /* ─── A4 Page ────────────────────────────── */
@@ -314,12 +404,9 @@ body {
   height: 297mm;
   overflow: hidden;
   box-sizing: border-box;
-  position: absolute;
-  top: 0;
-  left: 0;
+  flex-shrink: 0;
   font-family: 'Noto Sans SC', 'Inter', sans-serif;
 
-  /* Theme variables (defaults = classic) */
   --page-bg: #ffffff;
   --page-text: #1a1a1a;
   --heading-color: #1a1a1a;
@@ -332,7 +419,6 @@ body {
   --table-border: #d8dee4;
   --table-header-bg: #f6f8fa;
 
-  /* Layout variables (set by JS) */
   --ps: 0.5em;
   --fi: 0;
 
@@ -343,19 +429,7 @@ body {
     0 0 0 1px rgba(0, 0, 0, 0.05);
 }
 
-.a4-placeholder {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #b0a898;
-  font-size: 14px;
-  font-style: italic;
-  pointer-events: none;
-}
-
-/* ─── A4 Typography (all em-based) ───────── */
+/* ─── A4 Typography ──────────────────────── */
 .a4-page h1, .a4-page h2, .a4-page h3,
 .a4-page h4, .a4-page h5, .a4-page h6 {
   color: var(--heading-color);
@@ -495,9 +569,7 @@ body {
   font-weight: 600;
 }
 
-/* ─── Theme: Classic (default, variables set on .a4-page) ── */
-
-/* ─── Theme: Warm Paper ─────────────────── */
+/* ─── Themes ─────────────────────────────── */
 .a4-page.theme-warm {
   --page-bg: #faf5eb;
   --page-text: #3c3226;
@@ -512,7 +584,6 @@ body {
   --table-header-bg: #f3ead6;
 }
 
-/* ─── Theme: Academic ───────────────────── */
 .a4-page.theme-academic {
   --page-bg: #ffffff;
   --page-text: #222222;
@@ -536,7 +607,6 @@ body {
   border-top-width: 2px;
 }
 
-/* ─── Theme: Editorial / Magazine ───────── */
 .a4-page.theme-editorial {
   --page-bg: #ffffff;
   --page-text: #1a1a1a;
@@ -565,7 +635,6 @@ body {
   border-top-width: 3px;
 }
 
-/* ─── Theme: Smartisan Notes (锤子便签) ──── */
 .a4-page.theme-smartisan {
   --page-bg: #faf8f2;
   --page-text: #333333;
@@ -600,7 +669,6 @@ body {
   border-left-width: 3px;
 }
 
-/* ─── Theme: Noir (暗夜) ──────────────────── */
 .a4-page.theme-noir {
   --page-bg: #1a1a2e;
   --page-text: #d4d4dc;
@@ -619,7 +687,6 @@ body {
   border-top-width: 1px;
 }
 
-/* ─── Theme: Mint (薄荷) ──────────────────── */
 .a4-page.theme-mint {
   --page-bg: #f2faf6;
   --page-text: #1a2e26;
@@ -639,7 +706,6 @@ body {
   border-bottom: 1.5px solid #2ea07a;
 }
 
-/* ─── Theme: Ink (水墨) ────────────────────── */
 .a4-page.theme-ink {
   --page-bg: #f7f5ef;
   --page-text: #1a1a1a;
@@ -673,7 +739,6 @@ body {
   border-left-color: #1a1a1a;
 }
 
-/* ─── Theme: Tech (科技) ──────────────────── */
 .a4-page.theme-tech {
   --page-bg: #f8f9fc;
   --page-text: #1e293b;
@@ -701,7 +766,6 @@ body {
   color: #0958d9;
 }
 
-/* ─── Theme: Kraft (牛皮纸) ────────────────── */
 .a4-page.theme-kraft {
   --page-bg: #e8dcc8;
   --page-text: #3d3122;
@@ -737,34 +801,62 @@ body {
     background: white;
   }
 
-  body * {
+  body.is-printing {
+    background: white;
+  }
+
+  body.is-printing * {
     visibility: hidden;
   }
 
-  .a4-wrapper, .a4-wrapper * {
+  body.is-printing #app,
+  body.is-printing .app,
+  body.is-printing .right-panel,
+  body.is-printing .a4-wrapper,
+  body.is-printing .a4-wrapper * {
     visibility: visible !important;
   }
 
-  .a4-wrapper {
-    position: absolute !important;
-    left: 0 !important;
-    top: 0 !important;
-    width: 210mm !important;
-    height: 297mm !important;
+  body.is-printing #app,
+  body.is-printing .app {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
   }
 
-  .a4-page {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 210mm;
-    height: 297mm;
+  body.is-printing .topbar,
+  body.is-printing .left-panel {
+    display: none !important;
+  }
+
+  body.is-printing .right-panel {
+    display: block !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    min-height: auto !important;
+    min-width: auto !important;
+    background: white !important;
+    background-image: none !important;
+    cursor: default !important;
+  }
+
+  body.is-printing .a4-wrapper {
+    position: static !important;
+    display: block !important;
+  }
+
+  body.is-printing .a4-page {
+    width: 210mm !important;
+    height: 297mm !important;
     box-shadow: none;
     margin: 0;
     transform: none !important;
+    break-after: page;
+    page-break-after: always;
   }
 
-  .a4-placeholder {
-    display: none !important;
+  body.is-printing .a4-page:last-child {
+    break-after: auto;
+    page-break-after: auto;
   }
 }

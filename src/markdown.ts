@@ -1,12 +1,17 @@
 import { type Token, type Tokens, lexer } from 'marked'
 
-export type BlockType = 'paragraph' | 'heading' | 'code' | 'blockquote' | 'listitem' | 'hr' | 'space'
+export type BlockType = 'paragraph' | 'heading' | 'code' | 'blockquote' | 'listitem' | 'hr' | 'space' | 'pagebreak'
 
 export interface Block {
   type: BlockType
   text: string
   headingLevel?: number
   listIndentLevel?: number
+}
+
+export interface PageBlocks {
+  pages: Block[][]
+  hasPageBreaks: boolean
 }
 
 function extractPlainText(tokens: Token[]): string {
@@ -105,4 +110,44 @@ function processTokens(tokens: Token[]): Block[] {
 export function extractBlocks(markdown: string): Block[] {
   const tokens = lexer(markdown)
   return processTokens(tokens)
+}
+
+export function extractPages(markdown: string): PageBlocks {
+  const tokens = lexer(markdown)
+  const blocks = processTokens(tokens)
+  
+  // Check for page breaks
+  const hasPageBreaks = blocks.some(b => b.type === 'hr')
+  
+  if (!hasPageBreaks) {
+    return { pages: [blocks], hasPageBreaks: false }
+  }
+  
+  // Split blocks by hr (page break)
+  const pages: Block[][] = []
+  let currentPage: Block[] = []
+  
+  for (const block of blocks) {
+    if (block.type === 'hr') {
+      // End current page if it has content
+      if (currentPage.length > 0) {
+        pages.push(currentPage)
+        currentPage = []
+      }
+    } else {
+      currentPage.push(block)
+    }
+  }
+  
+  // Add last page if it has content
+  if (currentPage.length > 0) {
+    pages.push(currentPage)
+  }
+  
+  // If no pages were created, return empty
+  if (pages.length === 0) {
+    return { pages: [[]], hasPageBreaks: false }
+  }
+  
+  return { pages, hasPageBreaks: true }
 }
