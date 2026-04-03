@@ -110,7 +110,7 @@ function buildDOM(): void {
   sampleSelect.addEventListener('change', () => {
     const sample = SAMPLES.find(s => s.value === sampleSelect.value)
     if (sample) {
-      loadSample(sample.content)
+      loadSample(sample)
     }
   })
 
@@ -296,18 +296,22 @@ function updatePageLabels(): void {
   statusPages.textContent = `${pageStates.length} 页`
 }
 
-function loadSample(content: string): void {
-  // Clear all pages except the first one
-  while (pageStates.length > 1) {
+function loadSample(sample: { content?: string; pages?: string[] }): void {
+  const pages = sample.pages ?? [sample.content ?? '']
+
+  while (pageStates.length > pages.length) {
     const state = pageStates.pop()!
     state.editor.closest('.editor-card')!.remove()
     state.page.remove()
   }
 
-  // Load content into first page
-  if (pageStates.length > 0) {
-    pageStates[0].editor.value = content
+  while (pageStates.length < pages.length) {
+    addPage()
   }
+
+  pageStates.forEach((state, index) => {
+    state.editor.value = pages[index] ?? ''
+  })
 
   scheduleUpdate()
 }
